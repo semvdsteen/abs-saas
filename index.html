@@ -1,0 +1,134 @@
+<!doctype html><meta charset="utf-8">
+<title>AI Business Services — SaaS (AI-enabled)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<body style="font-family:system-ui,Arial;margin:0;background:#0b1b36;color:#eaf0ff">
+<header style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.12)">
+  <b>AI Business Services</b> — SaaS (AI ingeschakeld)
+</header>
+<main style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px">
+<section style="background:#0f1f3f;padding:12px;border-radius:12px">
+  <h3>Signup / Login</h3>
+  <label>Org</label><br><input id="org" style="width:100%"><br>
+  <label>Email</label><br><input id="email" style="width:100%"><br>
+  <label>Password</label><br><input id="pass" type="password" style="width:100%"><br>
+  <label>Role</label><br><select id="role" style="width:100%"><option>admin</option><option>sales</option></select><br><br>
+  <button onclick="signup()">Create org</button>
+  <button onclick="login()">Login</button>
+  <div id="status" style="margin-top:8px;color:#a9b4c7"></div>
+</section>
+
+<section style="background:#0f1f3f;padding:12px;border-radius:12px">
+  <h3>Create Lead</h3>
+  <label>Name</label><br><input id="cl_name" style="width:100%"><br>
+  <label>Email</label><br><input id="cl_email" style="width:100%"><br>
+  <label>Phone</label><br><input id="cl_phone" style="width:100%"><br>
+  <label>Address</label><br><input id="cl_addr" style="width:100%"><br>
+  <label>Items (JSON)</label><br>
+  <textarea id="items" rows="6" style="width:100%">[{"desc":"Dakwerk: bitumen 30m² (plat)","qty":1,"unit":2150,"amt":2150},{"desc":"Voorrijkosten","qty":1,"unit":95,"amt":95}]</textarea><br>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+    <div><label>Subtotal</label><br><input id="amount" value="2245" style="width:100%"></div>
+    <div><label>Tax</label><br><input id="vat" value="471.45" style="width:100%"></div>
+  </div>
+  <div><label>Total</label><br><input id="total" value="2716.45" style="width:100%"></div><br>
+  <button onclick="saveLead()">Save lead</button>
+  <button onclick="aiLeadNotes()">AI-samenvatting</button>
+  <button onclick="aiOfferText()">AI-offerte-tekst</button>
+  <div id="lead_msg" style="margin-top:8px;color:#a9b4c7"></div>
+
+  <h4 style="margin-top:16px">Leads</h4>
+  <table border="1" width="100%" cellpadding="6" style="border-color:#2b3b66">
+    <thead><tr><th>ID</th><th>Client</th><th>Email</th><th>Total</th><th>Created</th></tr></thead>
+    <tbody id="leadsTbl"></tbody>
+  </table>
+</section>
+
+<section style="grid-column:1 / span 2;background:#0f1f3f;padding:12px;border-radius:12px">
+  <h3>AI‑assistent</h3>
+  <div id="ai_msgs" style="height:220px;overflow:auto;background:#13264d;padding:8px;border-radius:8px;margin-bottom:8px"></div>
+  <div style="display:grid;grid-template-columns:1fr auto auto;gap:6px">
+    <input id="ai_in" placeholder="Stel je vraag…" style="padding:10px;border-radius:8px;border:1px solid #2b3b66;background:#0b1b36;color:#eaf0ff">
+    <select id="ai_lang"><option value="nl">NL</option><option value="en">EN</option><option value="de">DE</option><option value="fr">FR</option></select>
+    <button onclick="askAI()">Verstuur</button>
+  </div>
+</section>
+</main>
+
+<script>
+let token = null;
+const API = (p)=> (location.origin.includes('http')? location.origin : '') + '/api' + p;
+
+async function signup(){
+  const res = await fetch(API('/auth/signup'), {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({org:org.value,email:email.value,password:pass.value,role:role.value})});
+  const data = await res.json(); status.textContent = 'Signup: ' + JSON.stringify(data);
+}
+async function login(){
+  const res = await fetch(API('/auth/login'), {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({org:org.value,email:email.value,password:pass.value})});
+  const data = await res.json();
+  if(data.token){ token = data.token; status.textContent='Logged in.'; loadLeads(); } else { status.textContent='Login failed'; }
+}
+async function saveLead(){
+  const payload = {
+    client:{name:cl_name.value,email:cl_email.value,phone:cl_phone.value,addr:cl_addr.value},
+    items: JSON.parse(items.value||'[]'),
+    totals:{amount:parseFloat(amount.value||0), vat:parseFloat(vat.value||0), total:parseFloat(total.value||0)}
+  };
+  const res = await fetch(API('/leads'), {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify(payload)});
+  const data = await res.json(); lead_msg.textContent = 'Saved: ' + JSON.stringify(data); loadLeads();
+}
+async function loadLeads(){
+  const res = await fetch(API('/leads'), {headers:{'Authorization':'Bearer '+token}});
+  const data = await res.json();
+  leadsTbl.innerHTML = (data.rows||[]).map(r=>`<tr><td>${r.id}</td><td>${r.client_name}</td><td>${r.client_email}</td><td>${r.total}</td><td>${r.created_at}</td></tr>`).join('');
+}
+
+// AI chat
+const aiMsgs = [];
+function renderAI(){
+  const box = document.getElementById('ai_msgs');
+  box.innerHTML = aiMsgs.map(m => 
+    `<div style="margin:6px 0"><b style="color:${m.role==='user'?'#bfe1ff':'#7fe8a7'}">${m.role==='user'?'Jij':'AI'}:</b> ${m.content}</div>`
+  ).join('');
+  box.scrollTop = box.scrollHeight;
+}
+async function askAI(){
+  const txt = document.getElementById('ai_in').value.trim();
+  if(!txt || !token) return;
+  aiMsgs.push({role:'user', content: txt}); renderAI();
+  document.getElementById('ai_in').value = '';
+
+  const res = await fetch(API('/ai/chat'), {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body: JSON.stringify({ messages: aiMsgs, language: document.getElementById('ai_lang').value })
+  });
+  const data = await res.json();
+  aiMsgs.push({role:'assistant', content: data.reply || '(geen antwoord)'}); renderAI();
+}
+
+async function aiLeadNotes(){
+  const payload = {
+    lead: {
+      client:{name:cl_name.value,email:cl_email.value,phone:cl_phone.value,addr:cl_addr.value},
+      items: JSON.parse(items.value||'[]'),
+      totals:{amount:parseFloat(amount.value||0), vat:parseFloat(vat.value||0), total:parseFloat(total.value||0)}
+    }
+  };
+  const res = await fetch(API('/ai/lead-notes'), {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify(payload)});
+  const data = await res.json();
+  alert('AI-notities:\n\n'+ (data.notes||''));
+}
+async function aiOfferText(){
+  const payload = {
+    clientName: cl_name.value,
+    items: JSON.parse(items.value||'[]'),
+    total: parseFloat(total.value||0),
+    language: 'nl'
+  };
+  const res = await fetch(API('/ai/offer-text'), {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify(payload)});
+  const data = await res.json();
+  prompt('Offerte-tekst (kopieer naar je e-mail):', data.text||'');
+}
+</script>
+</body>
