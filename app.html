@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ABS — AI Chat</title>
+<style>
+  body{font-family:system-ui,Arial;background:#0b1b36;color:#eaf0ff;margin:0}
+  header{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.12)}
+  main{max-width:780px;margin:18px auto;padding:0 16px}
+  .box{background:#0f2147;border:1px solid #233a67;border-radius:12px;padding:12px}
+  #out{height:380px;overflow:auto;background:#0c1d3f;border:1px solid #223660;border-radius:8px;padding:10px;margin:8px 0}
+  .me{color:#bfe1ff}.ai{color:#7fe8a7}
+  input,textarea{width:100%;background:#0b1b36;border:1px solid #2a3b66;border-radius:8px;color:#eaf0ff;padding:10px}
+  button{background:#2b6df6;border:none;color:#fff;padding:10px 14px;border-radius:8px}
+</style>
+<header><b>AI Business Services</b> — Demo Chat</header>
+<main>
+  <div class="box">
+    <div id="out"></div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+      <input id="q" placeholder="Stel je vraag… (NL of EN)">
+      <button onclick="send()">Verstuur</button>
+    </div>
+  </div>
+  <p style="opacity:.8;margin-top:8px">Tip: vraag “Maak een korte offerte-tekst voor dakdekker (bitumen 30m²)”.</p>
+</main>
+<script>
+const out = document.getElementById('out');
+const log = (role, text)=>{
+  const div = document.createElement('div');
+  div.innerHTML = `<b class="${role==='user'?'me':'ai'}">${role==='user'?'Jij':'AI'}:</b> ${text.replace(/\n/g,'<br>')}`;
+  out.appendChild(div); out.scrollTop = out.scrollHeight;
+}
+async function send(){
+  const t = document.getElementById('q').value.trim();
+  if(!t) return;
+  document.getElementById('q').value = '';
+  log('user', t);
+  const res = await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:t,lang:'nl'})});
+  const data = await res.json().catch(()=>({}));
+  log('assistant', data.reply||'(geen antwoord)');
+}
+</script>
