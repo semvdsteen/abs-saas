@@ -1,10 +1,10 @@
-// Pure Node server (geen dependencies): serve + AI-proxy
+// Pure Node server met AI-proxy (+ fallback apiKey uit request)
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
 const PORT = process.env.PORT || 10000;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || ''; // zet deze in Render!
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || ''; // mag leeg zijn; dan gebruiken we body.apiKey
 
 const root = __dirname;
 function sendFile(res, file, type){
@@ -14,16 +14,22 @@ function sendFile(res, file, type){
     res.end(data);
   });
 }
+
 async function handleAI(req, res){
-  if(!OPENAI_API_KEY){
-    res.writeHead(500, {'Content-Type':'application/json'});
-    return res.end(JSON.stringify({error:'missing_openai_key'}));
-  }
   let body = '';
-  req.on('data', chunk => body += chunk);
+  req.on('data', c => body += c);
   req.on('end', async ()=>{
     try{
-      const { question='', lang='nl' } = JSON.parse(body||'{}');
+      const parsed = JSON.parse(body || '{}');
+      const question = parsed.question || '';
+      const lang = parsed.lang || 'nl';
+      const key = OPENAI_API_KEY || parsed.apiKey || ''; // << Fallback via request
+
+      if(!key){
+        res.writeHead(400, {'Content-Type':'application/json'});
+        return res.end(JSON.stringify({error:'missing_api_key'}));
+      }
+
       const payload = {
         model: 'gpt-4o-mini',
         messages: [
@@ -32,16 +38,17 @@ async function handleAI(req, res){
         ],
         temperature: 0.3
       };
+
       const r = await fetch('https://api.openai.com/v1/chat/completions', {
         method:'POST',
         headers:{
-          'Authorization':'Bearer ' + OPENAI_API_KEY,
+          'Authorization':'Bearer ' + key,
           'Content-Type':'application/json'
         },
         body: JSON.stringify(payload)
       });
       const j = await r.json();
-      const reply = j?.choices?.[0]?.message?.content || '';
+      const reply = j?.choices?.[0]?.message?.content || '(geen antwoord)';
       res.writeHead(200, {'Content-Type':'application/json'});
       res.end(JSON.stringify({reply}));
     }catch(e){
