@@ -1,4 +1,5 @@
-// Node server: static + AI chat + offerte generator
+const sgMail = require('@sendgrid/mail');
+sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');// Node server: static + AI chat + offerte generator
 const http = require('http');
 const fs   = require('fs');
 const path = require('path');
@@ -7,8 +8,30 @@ const PORT = process.env.PORT || 10000;
 const OPENAI = process.env.OPENAI_API_KEY || '';
 
 const root = __dirname;
-const send = (res,file,type)=>fs.readFile(path.join(root,file),(e,d)=>{
-  if(e){ res.writeHead(404); return res.end('Not Found'); }
+const send = (res,file,type)=>fs.readFile(path.join(root,file),(e,// API: e-mail offerte
+if(req.method==='POST' && url==='/api/mail'){
+  const body = await readJson(req);
+  const {name='',email='',content=''} = body;
+  if(!process.env.SENDGRID_API_KEY){ 
+    res.writeHead(500,{'Content-Type':'application/json'}); 
+    return res.end(JSON.stringify({error:'no_sendgrid'})); 
+  }
+  const msg = {
+    to: email,
+    from: 'noreply@abs-saas.com', // mag je aanpassen
+    subject: `Offerte van ABS SaaS voor ${name}`,
+    text: content
+  };
+  try {
+    await sgMail.send(msg);
+    res.writeHead(200,{'Content-Type':'application/json'});
+    return res.end(JSON.stringify({status:'ok'}));
+  } catch (e) {
+    console.error(e);
+    res.writeHead(500,{'Content-Type':'application/json'});
+    return res.end(JSON.stringify({status:'error'}));
+  }
+} if(e){ res.writeHead(404); return res.end('Not Found'); }
   res.writeHead(200,{'Content-Type':type}); res.end(d);
 });
 const readJson = (req)=>new Promise(r=>{
