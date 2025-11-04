@@ -1,55 +1,15 @@
-<!doctype html>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ABS — Lead & Offerte</title>
-<style>
-  body{font-family:system-ui,Arial;background:#0b1b36;color:#eaf0ff;margin:0}
-  header{padding:14px 16px;border-bottom:1px solid #244}
-  main{max-width:840px;margin:18px auto;padding:0 16px}
-  .card{background:#0f2147;border:1px solid #233a67;border-radius:12px;padding:16px}
-  label{display:block;margin:.5rem 0 .25rem}
-  input,textarea,select{width:100%;background:#0b1b36;border:1px solid #2a3b66;border-radius:8px;color:#eaf0ff;padding:10px}
-  button{background:#2b6df6;border:none;color:#fff;padding:10px 14px;border-radius:8px;margin-top:10px;cursor:pointer}
-  #result{white-space:pre-wrap;background:#0c1d3f;border:1px solid #223660;border-radius:8px;padding:10px;margin-top:12px}
-</style>
-<header><b>AI Business Services</b> — Lead & Offerte</header>
-<main>
-  <div class="card">
-    <h2 style="margin:0 0 10px">Nieuwe lead</h2>
-    <label>Naam</label><input id="name" placeholder="Naam klant">
-    <label>E-mail</label><input id="email" placeholder="klant@voorbeeld.nl">
-    <label>Telefoon</label><input id="phone" placeholder="06 ...">
-    <label>Branche</label>
-    <select id="industry">
-      <option value="dakdekker">Dakdekker</option>
-      <option value="loodgieter">Loodgieter</option>
-      <option value="elektro">Elektro</option>
-      <option value="schoonmaak">Schoonmaak</option>
-      <option value="anders">Anders</option>
-    </select>
-    <label>Omschrijving werk</label>
-    <textarea id="desc" rows="6" placeholder="Bijv. Bitumen dak 30 m², lekkage bij afvoer, spoed..."></textarea>
-    <button onclick="gen()">Genereer offerte-tekst</button>
-    <button onclick="copyText()" style="background:#19b36b">Kopieer tekst</button>
-    <a id="dl" download="offerte.txt" style="margin-left:8px; color:#9fbcff">Download .txt</a>
-    <div id="result"></div>
-  </div>
-</main>
-<script>
-async function gen(){
+<button onclick="gen()">Genereer offerte-tekst</button>
+<button onclick="copyText()" style="background:#19b36b">Kopieer tekst</button>
+<a id="dl" download="offerte.txt" style="margin-left:8px; color:#9fbcff">Download .txt</a>
+<button onclick="sendMail()" style="background:#f6b82b;margin-left:8px;">Stuur mail</button>
+<div id="result"></div>async function sendMail(){
+  if(!result.textContent){ alert('Genereer eerst een offerte.'); return; }
   const payload = {
     name: name.value.trim(),
     email: email.value.trim(),
-    phone: phone.value.trim(),
-    industry: industry.value,
-    description: desc.value.trim(),
-    lang: 'nl'
+    content: result.textContent
   };
-  if(!payload.description){ alert('Geef een omschrijving.'); return; }
-  const r = await fetch('/api/offer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  const j = await r.json().catch(()=>({reply:'(geen antwoord)'}));
-  result.textContent = j.reply || '(geen antwoord)';
-  dl.href = 'data:text/plain;charset=utf-8,'+encodeURIComponent(result.textContent);
+  const r = await fetch('/api/mail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const j = await r.json().catch(()=>({}));
+  alert(j.status==='ok' ? 'Mail verzonden ✅' : 'Verzenden mislukt ❌');
 }
-function copyText(){ navigator.clipboard.writeText(result.textContent||''); }
-</script>
