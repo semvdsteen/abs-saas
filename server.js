@@ -27,7 +27,7 @@ app.post('/api/mail', async (req, res) => {
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
-
+app.get('/ping', (_, res) => res.send('pong ' + Date.now()));
 app.listen(PORT, () => {
   console.log(`✅ ABS server running on port ${PORT}`);
 });
