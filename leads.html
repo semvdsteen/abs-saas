@@ -1,15 +1,33 @@
-<button onclick="gen()">Genereer offerte-tekst</button>
-<button onclick="copyText()" style="background:#19b36b">Kopieer tekst</button>
-<a id="dl" download="offerte.txt" style="margin-left:8px; color:#9fbcff">Download .txt</a>
-<button onclick="sendMail()" style="background:#f6b82b;margin-left:8px;">Stuur mail</button>
-<div id="result"></div>async function sendMail(){
-  if(!result.textContent){ alert('Genereer eerst een offerte.'); return; }
-  const payload = {
-    name: name.value.trim(),
-    email: email.value.trim(),
-    content: result.textContent
-  };
-  const r = await fetch('/api/mail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  const j = await r.json().catch(()=>({}));
-  alert(j.status==='ok' ? 'Mail verzonden ✅' : 'Verzenden mislukt ❌');
-}
+const express = require('express');
+const path = require('path');
+const bodyParser = require('body-parser');
+const app = express();
+
+const PORT = process.env.PORT || 10000;
+
+// Middleware
+app.use(bodyParser.json());
+app.use(express.static(__dirname));
+
+// API endpoint voor e-mails
+app.post('/api/mail', async (req, res) => {
+  try {
+    const { name, email, content } = req.body;
+    console.log('Mail ontvangen:', name, email, content);
+
+    // (Hier kun je later mailverzending toevoegen met nodemailer of OpenAI)
+    res.json({ status: 'ok' });
+  } catch (error) {
+    console.error('Fout bij mail:', error);
+    res.json({ status: 'error' });
+  }
+});
+
+// Hoofdpagina
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(`✅ ABS server running on port ${PORT}`);
+});
