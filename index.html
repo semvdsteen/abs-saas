@@ -1,21 +1,22 @@
-<input id="lead-company" ...>
-<input id="lead-contact" ...>
-<input id="lead-email" ...>
-<input id="lead-phone" ...>
-<textarea id="lead-notes"></textarea>
-
-<select id="offer-tone">...</select>
-<input id="offer-service" ...>
-<input id="offer-price" ...>
-<textarea id="offer-benefits"></textarea>
-<textarea id="offer-result"></textarea>
-
-<div id="lead-count">0</div>
-<div id="lead-list"></div>
-
-<button id="save-lead-btn">Lead opslaan</button>
-<button id="generate-offer-btn">Genereer tekst</button>
-<button id="copy-offer-btn">Kopieer tekst</button>
-<button id="send-offer-btn">Verzend via /api/mail</button>
-
-<script src="/leads.js"></script>
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <title>ABS — AI Business Services</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, sans-serif; background:#021326; color:#f5f5f5; margin:0; padding:40px; }
+    .card { max-width:700px; margin:0 auto; background:#06162e; border-radius:16px; padding:30px; box-shadow:0 12px 40px rgba(0,0,0,0.45);}
+    h1 { margin-top:0; }
+    a.button { display:inline-block; margin-top:20px; padding:12px 20px; border-radius:999px; background:#1d8cff; color:#fff; text-decoration:none; font-weight:600; }
+    a.button:hover { opacity:0.9; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>ABS — AI Business Services</h1>
+    <p>Welkom in jouw ABS SaaS omgeving. Vanuit hier ga je naar je leadbeheer en offerte-assistent.</p>
+    <a href="/leads.html" class="button">Naar leadbeheer & offertes</a>
+  </div>
+</body>
+</html>
