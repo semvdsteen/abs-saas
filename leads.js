@@ -1,177 +1,165 @@
-// ====== STATE ======
-let leads = [];
+// server.js
+// Simpele ABS SaaS backend met:
+// - statische bestanden
+// - leads-API (JSON file opslag)
+// - mail-demo endpoint
 
-// ====== LOAD LEADS FROM API ======
-async function loadLeads() {
-    try {
-        const res = await fetch("/api/leads");
-        leads = await res.json();
-        renderLeads();
-        updateLeadCount();
-    } catch (err) {
-        console.error("Kan leads niet laden:", err);
-    }
+const express = require("express");
+const path = require("path");
+const fs = require("fs");
+
+const app = express();
+const PORT = process.env.PORT || 10000;
+
+// ==== MIDDLEWARE ====
+app.use(express.json());
+
+// Statische bestanden (index.html, leads.html, leads.js, etc.)
+app.use(express.static(__dirname));
+
+// ==== LEADS OPSLAG (JSON FILE) ====
+
+// map: /data/leads.json
+const dataDir = path.join(__dirname, "data");
+const leadsFile = path.join(dataDir, "leads.json");
+
+// Zorg dat map en file bestaan
+function ensureStorage() {
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir);
+  }
+  if (!fs.existsSync(leadsFile)) {
+    fs.writeFileSync(leadsFile, "[]", "utf8");
+  }
 }
 
-// ====== RENDER LEADS IN LIST ======
-function renderLeads() {
-    const list = document.getElementById("lead-list");
-    list.innerHTML = "";
+// Lees leads uit file
+function loadLeads() {
+  ensureStorage();
+  const raw = fs.readFileSync(leadsFile, "utf8");
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error("Kon leads.json niet parsen, reset naar []");
+    return [];
+  }
+}
 
-    leads.forEach((lead, index) => {
-        const li = document.createElement("div");
-        li.className = "lead-item";
-        li.innerHTML = `
-            <strong>${lead.companyName}</strong><br>
-            ${lead.contactName} — ${lead.email}<br>
-            <span class="status">${lead.status.toUpperCase()}</span>
-        `;
+// Schrijf leads naar file
+function saveLeads(leads) {
+  ensureStorage();
+  fs.writeFileSync(leadsFile, JSON.stringify(leads, null, 2), "utf8");
+}
 
-        li.onclick = () => fillOfferHelper(index);
+// Helper om simpele unieke id te maken
+function createId() {
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+}
 
-        list.appendChild(li);
+// ==== API: LEADS ====
+
+// Alle leads ophalen
+app.get("/api/leads", (req, res) => {
+  const leads = loadLeads();
+  res.json(leads);
+});
+
+// Nieuwe lead aanmaken
+app.post("/api/leads", (req, res) => {
+  const { companyName, contactName, email, phone, notes, status } = req.body;
+
+  if (!companyName || !contactName) {
+    return res.status(400).json({
+      error: "companyName en contactName zijn verplicht",
     });
-}
+  }
 
-// ====== UPDATE LEAD COUNT ======
-function updateLeadCount() {
-    const el = document.getElementById("lead-count");
-    if (el) el.textContent = leads.length;
-}
+  const leads = loadLeads();
+  const now = new Date().toISOString();
 
-// ====== FILL OFFER HELPER WITH LEAD DATA ======
-function fillOfferHelper(index) {
-    const lead = leads[index];
+  const newLead = {
+    id: createId(),
+    companyName,
+    contactName,
+    email: email || "",
+    phone: phone || "",
+    notes: notes || "",
+    status: status || "nieuw",
+    createdAt: now,
+    updatedAt: now,
+  };
 
-    document.getElementById("offer-service").value = lead.notes || "";
-    document.getElementById("offer-benefits").value = 
-        `${lead.companyName}\n${lead.contactName} — ${lead.email}`;
-    document.getElementById("lead-email").value = lead.email;
-}
+  leads.push(newLead);
+  saveLeads(leads);
 
-// ====== SAVE NEW LEAD ======
-async function saveLead() {
-    const company = document.getElementById("lead-company").value.trim();
-    const contact = document.getElementById("lead-contact").value.trim();
-    const email   = document.getElementById("lead-email").value.trim();
-    const phone   = document.getElementById("lead-phone").value.trim();
-    const notes   = document.getElementById("lead-notes").value.trim();
+  res.status(201).json(newLead);
+});
 
-    if (!company || !contact) {
-        alert("Bedrijfsnaam en contactpersoon zijn verplicht.");
-        return;
-    }
+// Bestaande lead bijwerken
+app.put("/api/leads/:id", (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
 
-    const newLead = {
-        companyName: company,
-        contactName: contact,
-        email,
-        phone,
-        notes,
-        status: "nieuw"
-    };
+  const leads = loadLeads();
+  const index = leads.findIndex((l) => l.id === id);
 
-    try {
-        await fetch("/api/leads", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(newLead)
-        });
+  if (index === -1) {
+    return res.status(404).json({ error: "Lead niet gevonden" });
+  }
 
-        // Velden leegmaken
-        document.getElementById("lead-company").value = "";
-        document.getElementById("lead-contact").value = "";
-        document.getElementById("lead-email").value = "";
-        document.getElementById("lead-phone").value = "";
-        document.getElementById("lead-notes").value = "";
+  leads[index] = {
+    ...leads[index],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
 
-        loadLeads(); // opnieuw laden
-    } catch (err) {
-        console.error("Lead opslaan mislukt:", err);
-    }
-}
+  saveLeads(leads);
+  res.json(leads[index]);
+});
 
-// ====== OFFERTETEKST GENEREREN ======
-function generateOffer() {
-    const dienst  = document.getElementById("offer-service").value.trim();
-    const tone    = document.getElementById("offer-tone").value;
-    const prijs   = document.getElementById("offer-price").value.trim();
-    const plus    = document.getElementById("offer-benefits").value.trim();
+// Lead verwijderen
+app.delete("/api/leads/:id", (req, res) => {
+  const { id } = req.params;
+  const leads = loadLeads();
+  const index = leads.findIndex((l) => l.id === id);
 
-    let intro = "";
-    if (tone === "vlot") {
-        intro = `Thanks voor de aanvraag voor ${dienst}!`;
-    } else if (tone === "formeel") {
-        intro = `Dank voor uw interesse in ${dienst}.`;
-    } else {
-        intro = `Bedankt voor uw aanvraag voor ${dienst}.`;
-    }
+  if (index === -1) {
+    return res.status(404).json({ error: "Lead niet gevonden" });
+  }
 
-    const tekst = `
-${intro}
+  const removed = leads.splice(index, 1)[0];
+  saveLeads(leads);
+  res.json({ ok: true, removed });
+});
 
-Hierbij sturen wij een eerste voorstel.
+// ==== API: MAIL DEMO ====
+// LET OP: dit stuurt nog geen echte mail, maar logt alleen in de server
 
-Indicatieve investering: ${prijs || "in overleg"}.
+app.post("/api/mail", (req, res) => {
+  const { to, subject, text } = req.body;
 
-Pluspunten / garanties:
-${plus}
+  if (!to || !text) {
+    return res
+      .status(400)
+      .json({ error: "Veld 'to' en 'text' zijn verplicht" });
+  }
 
-Laat het gerust weten als er vragen zijn.
+  console.log("==== MAIL DEMO ====");
+  console.log("To:     ", to);
+  console.log("Subject:", subject || "(geen onderwerp)");
+  console.log("Text:\n", text.substring(0, 500));
+  console.log("====================");
 
-Met vriendelijke groet,
-ABS – AI Business Services
-`;
+  res.json({ ok: true });
+});
 
-    document.getElementById("offer-result").value = tekst;
-}
+// ==== ROOT ROUTE ====
+// optioneel: index.html als hoofdpagina
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
 
-// ====== COPY TEXT TO CLIPBOARD ======
-async function copyOffer() {
-    try {
-        await navigator.clipboard.writeText(
-            document.getElementById("offer-result").value
-        );
-        alert("Offerte gekopieerd!");
-    } catch (err) {
-        alert("Kopiëren mislukt.");
-    }
-}
-
-// ====== SEND MAIL ======
-async function sendMail() {
-    const to = document.getElementById("lead-email").value.trim();
-    const text = document.getElementById("offer-result").value.trim();
-    const subject = "Voorstel – ABS Business Service";
-
-    if (!to || !text) {
-        alert("Geen e-mail of geen offerte ingevuld.");
-        return;
-    }
-
-    try {
-        const res = await fetch("/api/mail", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ to, subject, text })
-        });
-
-        if (res.ok) {
-            alert("Mail verzonden (check server console)!");
-        } else {
-            alert("Fout bij mail versturen.");
-        }
-    } catch (err) {
-        alert("Kan server niet bereiken.");
-    }
-}
-
-// ====== INIT ======
-document.addEventListener("DOMContentLoaded", () => {
-    loadLeads();
-
-    document.getElementById("save-lead-btn").onclick = saveLead;
-    document.getElementById("generate-offer-btn").onclick = generateOffer;
-    document.getElementById("copy-offer-btn").onclick = copyOffer;
-    document.getElementById("send-offer-btn").onclick = sendMail;
+// ==== SERVER STARTEN ====
+app.listen(PORT, () => {
+  console.log(`ABS SaaS server draait op poort ${PORT}`);
 });
