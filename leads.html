@@ -1,33 +1,232 @@
-const express = require('express');
-const path = require('path');
-const bodyParser = require('body-parser');
-const app = express();
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ABS — Leads & Offertes</title>
+  <style>
+    :root{
+      color-scheme:dark;
+      --bg:#07132a;
+      --card:#0e213f;
+      --accent:#58a6ff;
+      --border:rgba(255,255,255,.12);
+    }
+    *{box-sizing:border-box;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+    body{margin:0;background:var(--bg);color:#f5f7ff}
+    header{padding:18px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+    header a{color:#fff;text-decoration:none;font-weight:600;display:flex;align-items:center;gap:8px}
+    main{max-width:1100px;margin:0 auto;padding:32px 20px 60px;display:grid;gap:32px}
+    h1{margin:0;font-size:clamp(1.8rem,2.6vw,2.6rem)}
+    p{line-height:1.5}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;box-shadow:0 15px 40px rgba(0,0,0,.25)}
+    label{display:block;font-size:.9rem;margin-bottom:6px;color:#d1dcff}
+    input,textarea,select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b1933;color:#fff;font-size:1rem}
+    textarea{min-height:120px;resize:vertical}
+    button{background:var(--accent);color:#041024;border:none;border-radius:10px;padding:11px 18px;font-weight:600;cursor:pointer;transition:.2s box-shadow}
+    button:hover{box-shadow:0 8px 20px rgba(88,166,255,.4)}
+    .leads-list{display:grid;gap:14px;margin-top:16px}
+    .lead-item{padding:14px;border:1px solid rgba(255,255,255,.15);border-radius:10px;background:#0b1d3a}
+    .lead-item small{opacity:.7}
+    .status{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;border-radius:999px;padding:3px 10px;background:rgba(88,166,255,.16);color:var(--accent)}
+    .text-muted{opacity:.75;font-size:.95rem}
+    .toast{position:fixed;bottom:24px;right:24px;background:#0c2b58;padding:16px 18px;border-radius:12px;border:1px solid rgba(255,255,255,.12);box-shadow:0 15px 35px rgba(0,0,0,.45);display:none}
+    @media(max-width:640px){
+      header{flex-direction:column;align-items:flex-start}
+      .toast{left:24px;right:24px}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/">⬅ Terug naar dashboard</a>
+    <div>
+      <strong>ABS — AI Business Services</strong>
+      <div class="text-muted">Leadbeheer & offerte-assistent</div>
+    </div>
+  </header>
+  <main>
+    <section class="card">
+      <h1>Centraliseer leads, stuur razendsnel offertes</h1>
+      <p>Gebruik de formulieren hieronder om nieuwe leads vast te leggen en laat de ingebouwde AI-templates direct een voorsteltekst genereren. Alles draait lokaal — perfect voor demo's en interne validatie.</p>
+      <div class="grid" style="margin-top:18px">
+        <div>
+          <div class="text-muted">Laatste update</div>
+          <div style="font-size:1.2rem" id="lastUpdate">–</div>
+        </div>
+        <div>
+          <div class="text-muted">Actieve leads</div>
+          <div style="font-size:1.2rem" id="leadCount">0</div>
+        </div>
+      </div>
+    </section>
 
-const PORT = process.env.PORT || 10000;
+    <section class="grid">
+      <div class="card">
+        <h2>Nieuwe lead</h2>
+        <p class="text-muted">Noteer basisgegevens. De lead verschijnt in de lijst en blijft lokaal opgeslagen.</p>
+        <form id="leadForm">
+          <label for="company">Bedrijfsnaam</label>
+          <input id="company" required placeholder="Bijv. Dakmeesters BV">
 
-// Middleware
-app.use(bodyParser.json());
-app.use(express.static(__dirname));
+          <label for="contact">Contactpersoon</label>
+          <input id="contact" required placeholder="Naam">
 
-// API endpoint voor e-mails
-app.post('/api/mail', async (req, res) => {
-  try {
-    const { name, email, content } = req.body;
-    console.log('Mail ontvangen:', name, email, content);
+          <label for="email">E-mail</label>
+          <input id="email" required type="email" placeholder="naam@bedrijf.nl">
 
-    // (Hier kun je later mailverzending toevoegen met nodemailer of OpenAI)
-    res.json({ status: 'ok' });
-  } catch (error) {
-    console.error('Fout bij mail:', error);
-    res.json({ status: 'error' });
-  }
-});
+          <label for="phone">Telefoon</label>
+          <input id="phone" placeholder="06 12345678">
 
-// Hoofdpagina
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+          <label for="need">Vraag/behoefte</label>
+          <textarea id="need" required placeholder="Waarmee kunnen we helpen?"></textarea>
 
-app.listen(PORT, () => {
-  console.log(`✅ ABS server running on port ${PORT}`);
-});
+          <button type="submit" style="margin-top:12px">Lead opslaan</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>AI Offertehelper</h2>
+        <p class="text-muted">Maak in seconden een korte voorsteltekst. Pas de velden aan en kopieer of verstuur.</p>
+        <label for="service">Dienst/product</label>
+        <input id="service" placeholder="Dakinspectie & reparatie">
+
+        <label for="tone">Tone of voice</label>
+        <select id="tone">
+          <option value="professioneel">Professioneel</option>
+          <option value="vlot">Vlot & enthousiast</option>
+          <option value="formeel">Formeel</option>
+        </select>
+
+        <label for="price">Indicatieve prijs</label>
+        <input id="price" placeholder="Bijv. €2.450">
+
+        <label for="extras">Pluspunten / garanties</label>
+        <textarea id="extras" placeholder="Bijv. 10 jaar garantie, levering binnen 2 weken"></textarea>
+
+        <button id="generate" style="margin-top:12px">Genereer tekst</button>
+
+        <label for="proposal" style="margin-top:16px">Resultaat</label>
+        <textarea id="proposal" readonly placeholder="Offerte verschijnt hier…"></textarea>
+
+        <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+          <button type="button" id="copyBtn">Kopieer tekst</button>
+          <button type="button" id="sendBtn" style="background:#45d483;color:#012611">Verzend via /api/mail</button>
+        </div>
+        <small class="text-muted">De mail wordt lokaal gelogd in de server (zie console).</small>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Leadlijst</h2>
+      <div class="text-muted">Klik op een lead om de details te kopiëren naar de offertehelper.</div>
+      <div id="leadList" class="leads-list"></div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const leadForm = document.getElementById('leadForm');
+    const leadList = document.getElementById('leadList');
+    const toneMap = {
+      professioneel: 'We blijven to-the-point en oplossingsgericht.',
+      vlot: 'We voegen extra energie en enthousiasme toe.',
+      formeel: 'We houden het officieel en resultaatgericht.'
+    };
+    let leads = JSON.parse(localStorage.getItem('abs-leads') || '[]');
+
+    const toast = (msg)=>{
+      const box = document.getElementById('toast');
+      box.textContent = msg;
+      box.style.display = 'block';
+      setTimeout(()=>box.style.display='none', 3200);
+    };
+
+    const renderLeads = () => {
+      leadList.innerHTML = '';
+      if(!leads.length){
+        leadList.innerHTML = '<div class="text-muted">Nog geen leads opgeslagen.</div>';
+      }
+      leads.forEach((lead, idx) => {
+        const div = document.createElement('button');
+        div.className = 'lead-item';
+        div.style.textAlign = 'left';
+        div.style.cursor = 'pointer';
+        div.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong>${lead.company}</strong>
+            <span class="status">${lead.stage}</span>
+          </div>
+          <div>${lead.contact} — <small>${lead.email}</small></div>
+          <small>${lead.need}</small>
+        `;
+        div.onclick = () => fillProposalFromLead(idx);
+        leadList.appendChild(div);
+      });
+      document.getElementById('leadCount').textContent = leads.length;
+      document.getElementById('lastUpdate').textContent = leads.length ? new Date(leads[0].created).toLocaleString('nl-NL') : '–';
+    };
+
+    leadForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const lead = {
+        company: leadForm.company.value.trim(),
+        contact: leadForm.contact.value.trim(),
+        email: leadForm.email.value.trim(),
+        phone: leadForm.phone.value.trim(),
+        need: leadForm.need.value.trim(),
+        stage: 'nieuw',
+        created: Date.now()
+      };
+      leads = [lead, ...leads].slice(0, 50);
+      localStorage.setItem('abs-leads', JSON.stringify(leads));
+      renderLeads();
+      leadForm.reset();
+      toast('Lead opgeslagen (alleen lokaal)');
+    });
+
+    function fillProposalFromLead(idx){
+      const lead = leads[idx];
+      document.getElementById('service').value = `${lead.need} voor ${lead.company}`;
+      document.getElementById('extras').value = `${lead.contact} (${lead.phone||'geen telefoon'}) — ${lead.email}`;
+      toast('Leadinfo gekopieerd naar offertehelper');
+    }
+
+    document.getElementById('generate').addEventListener('click', () => {
+      const service = document.getElementById('service').value || 'jullie aanvraag';
+      const tone = document.getElementById('tone').value;
+      const price = document.getElementById('price').value || 'prijs op aanvraag';
+      const extras = document.getElementById('extras').value || 'Snelle levertijden en transparante communicatie.';
+      const body = `Beste relatie,\n\nBedankt voor de interesse in ${service}. ${toneMap[tone]}\n\nWij kunnen het traject volledig begeleiden: inventarisatie, uitvoering en afronding met één aanspreekpunt. Voor dit voorstel rekenen we ${price}.\n\nPluspunten:\n• ${extras.split(/\n|,/).map(s=>s.trim()).filter(Boolean).join('\n• ')}\n\nLaat gerust weten of we details moeten aanpassen. We plannen dan direct de volgende stap in.\n\nMet vriendelijke groet,\nAI Business Services`;
+      document.getElementById('proposal').value = body;
+      toast('Voorsteltekst klaar');
+    });
+
+    document.getElementById('copyBtn').addEventListener('click', async () => {
+      const text = document.getElementById('proposal').value;
+      if(!text){toast('Geen tekst om te kopiëren');return;}
+      await navigator.clipboard.writeText(text);
+      toast('Tekst gekopieerd');
+    });
+
+    document.getElementById('sendBtn').addEventListener('click', async () => {
+      const text = document.getElementById('proposal').value;
+      if(!text){toast('Genereer eerst een tekst');return;}
+      const name = document.getElementById('company').value || 'Onbekende lead';
+      const email = document.getElementById('email').value || 'demo@abs.ai';
+      try{
+        const res = await fetch('/api/mail',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,content:text})});
+        const data = await res.json();
+        if(data.status==='ok'){toast('Server ontving je voorstel');}
+        else toast('Kon mail niet versturen');
+      }catch(err){
+        toast('Netwerkfout, check server');
+      }
+    });
+
+    renderLeads();
+  </script>
+</body>
+</html>
