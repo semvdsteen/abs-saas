@@ -1,10 +1,21 @@
-<!doctype html>
-<meta charset="utf-8">
-<title>ABS SaaS</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<body style="font-family:system-ui;display:grid;place-items:center;height:100vh;margin:0;background:#0b1b36;color:#eaf0ff">
-  <div style="text-align:center">
-    <h1>✅ ABS-SaaS draait</h1>
-    <p><a href="/leads.html" style="color:#9fbcff">Ga naar Lead & Offerte</a></p>
-  </div>
-</body>
+<input id="lead-company" ...>
+<input id="lead-contact" ...>
+<input id="lead-email" ...>
+<input id="lead-phone" ...>
+<textarea id="lead-notes"></textarea>
+
+<select id="offer-tone">...</select>
+<input id="offer-service" ...>
+<input id="offer-price" ...>
+<textarea id="offer-benefits"></textarea>
+<textarea id="offer-result"></textarea>
+
+<div id="lead-count">0</div>
+<div id="lead-list"></div>
+
+<button id="save-lead-btn">Lead opslaan</button>
+<button id="generate-offer-btn">Genereer tekst</button>
+<button id="copy-offer-btn">Kopieer tekst</button>
+<button id="send-offer-btn">Verzend via /api/mail</button>
+
+<script src="/leads.js"></script>
